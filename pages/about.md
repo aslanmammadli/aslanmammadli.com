@@ -25,5 +25,8 @@ I have trained more than 3,000 people in entrepreneurship. I hold a B.Sc. in Wor
 
 ## Elsewhere
 
+- [LinkedIn](https://www.linkedin.com/in/azemammadli/)
+- [X](https://x.com/azlanmammadli)
+- [Instagram](https://www.instagram.com/azlanmammadli/)
 - [Enverson AI](https://enverson.com/)
 - [Blog](/blog/)
