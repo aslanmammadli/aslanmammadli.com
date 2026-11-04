@@ -8,7 +8,7 @@ I'm Aslan Mammadli, CEO and co-founder of [Enverson AI](https://enverson.com/), 
 
 ## How I got here
 
-I spent six years running physical English language schools with my co-founder Emil Mammadov. That work grew into Enverson Colleges, an education group with campuses in Baku, Sumgait and London.
+I spent six years running physical English language schools with my co-founder Emil Mammadov. That work grew into Enverson Colleges, an education group with campuses in Baku, Sumgait and Plymouth.
 
 Years in classrooms showed us that speaking practice is what learners get least of. In January 2025 we launched Enverson AI to fix that.
 

@@ -7,7 +7,7 @@ label: Enverson AI
 tagline: Why we turned our English schools into an AI tutor
 color: orange
 ---
-For six years, my co-founder Emil Mammadov and I ran physical English language schools. That work grew into Enverson Colleges, an education group with campuses in Baku, Sumgait and London.
+For six years, my co-founder Emil Mammadov and I ran physical English language schools. That work grew into Enverson Colleges, an education group with campuses in Baku, Sumgait and Plymouth.
 
 Running classrooms teaches you where learners actually get stuck. Grammar and vocabulary can be studied alone. Speaking cannot. Learners need someone to talk to, and in a classroom every student only gets a few minutes of speaking time per lesson.
 

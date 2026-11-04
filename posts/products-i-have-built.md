@@ -15,7 +15,7 @@ A consumer app that grew to **60,000 monthly active users**.
 
 ## Enverson Colleges
 
-An education group with campuses in Baku, Sumgait and London, which I co-founded after years of running English language schools.
+An education group with campuses in Baku, Sumgait and Plymouth, which I co-founded after years of running English language schools.
 
 ## Azerbaijani speech to text
 
