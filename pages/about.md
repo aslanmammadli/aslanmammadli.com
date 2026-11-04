@@ -25,11 +25,13 @@ I have trained more than 3,000 people in entrepreneurship. I hold a B.Sc. in Wor
 
 ## Awards
 
+- **Dayaq award (2025)**: Enverson AI was named Innovative Education Company of the Year by the Small and Medium Business Development Agency of Azerbaijan (KOBİA), with the support of the Ministry of Economy.
 - **1st place and 10,000 AZN**, New Generation pitch day of the Youth Inc. entrepreneurship program (2019), for Buqelemun.
 - **2nd place**, "İ2B: İdeyadan Biznesə" startup competition at InnoWeek (2019), for Buqelemun.
 
 ## In the press
 
+- [INNOLAND resident Enverson AI receives the Dayaq award](https://www.innoland.az/az/news/4222), INNOLAND (2025)
 - [Founders Talk Podcast, Ep. 6](https://www.youtube.com/watch?v=d6B0welaigg), Entreset (2026)
 - [Enverson AI: an AI based language learning platform for companies and individuals](https://fondera.az/blog/enverson-ai-sirketler-ve-ferdi-istifadeciler-ucun-suni-intellekt-esasli-dil-oyrenme-platformasi), Fondera (2025)
 - [Azerbaijani entrepreneur opens a UK branch of the company he started with zero capital](https://fed.az/az/biznes-tarixi/azerbaycanli-is-adami-1-qepik-xerclemeden-yaratdigi-sirketin-bri%CC%87tani%CC%87yada-fi%CC%87li%CC%87alini-acib-bi%CC%87znesi%CC%87-basqa-olkelere-de-yayilacaq-183309), FED.az (2023)
