@@ -51,7 +51,7 @@ def card(p):
 
 HEADER = '''<header class="top">
     <a class="name" href="/">Aslan Mammadli</a>
-    <nav><a href="/about/">About</a><a href="/blog/">Blog</a><a href="/hobby/">Hobby</a></nav>
+    <nav><a href="/about/">About</a><a href="/blog/">Blog</a><a href="/expertise/">Expertise</a><a href="/hobby/">Hobby</a></nav>
   </header>'''
 
 

@@ -62,6 +62,9 @@ footer{margin:96px 0 48px;padding-top:24px;border-top:1px solid var(--line);colo
 .hobbies{margin-top:28px}
 .hobbies .cover{aspect-ratio:1/1}
 .emoji{font-size:44px;line-height:1}
+.expertise{margin:8px 0 8px;font-size:16px}
+.expertise li{padding:12px 0;border-bottom:1px solid var(--line)}
+.expertise .v span{line-height:1.6}
 .back{display:inline-block;margin-top:48px;color:var(--fg)}
 @media (max-width:820px){.cards.three{grid-template-columns:repeat(2,1fr)}}
 @media (max-width:560px){.cards,.cards.three{grid-template-columns:1fr}nav a{margin-left:14px}.intro{margin-top:32px}.list li{grid-template-columns:1fr;gap:0}.post-head h1{font-size:26px}}
