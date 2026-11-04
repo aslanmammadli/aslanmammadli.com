@@ -26,6 +26,7 @@ I have trained more than 3,000 people in entrepreneurship. I hold a B.Sc. in Wor
 ## Awards
 
 - **Dayaq award (2025)**: Enverson AI was named Innovative Education Company of the Year by the Small and Medium Business Development Agency of Azerbaijan (KOBİA), with the support of the Ministry of Economy.
+- **3rd place**, [Unicorn Battle in Silicon Valley](https://unicorn.events/46059080/) by Network.VC (2026), for Enverson AI.
 - **1st place and 10,000 AZN**, New Generation pitch day of the Youth Inc. entrepreneurship program (2019), for Buqelemun.
 - **2nd place**, "İ2B: İdeyadan Biznesə" startup competition at InnoWeek (2019), for Buqelemun.
 
