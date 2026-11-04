@@ -23,6 +23,7 @@ import markdown
 ROOT = pathlib.Path(__file__).parent
 SITE = ROOT / "site"
 BASE = "https://aslanmammadli.com"
+PAGES = []
 
 
 def parse(path):
@@ -50,7 +51,7 @@ def card(p):
 
 HEADER = '''<header class="top">
     <a class="name" href="/">Aslan Mammadli</a>
-    <nav><a href="/blog/">Blog</a><a href="/#work">Work</a></nav>
+    <nav><a href="/about/">About</a><a href="/blog/">Blog</a></nav>
   </header>'''
 
 
@@ -70,6 +71,9 @@ def page(title, desc, url, body, extra_head=""):
 <meta property="og:image" content="{BASE}/aslan-mammadli-large.jpg">
 <meta name="twitter:card" content="summary">
 <link rel="stylesheet" href="/style.css">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 {extra_head}</head>
 <body>
 <div class="wrap">
@@ -109,6 +113,26 @@ def main():
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(page(f'{p["title"]} | Aslan Mammadli', p["description"], url, body, head))
 
+    # Standalone pages (pages/<slug>.md -> /<slug>/)
+    for f in (ROOT / "pages").glob("*.md"):
+        raw = f.read_text()
+        m = re.match(r"---\n(.*?)\n---\n(.*)", raw, re.S)
+        meta = {k.strip(): v.strip() for k, v in (l.split(":", 1) for l in m.group(1).splitlines() if ":" in l)}
+        url = f"{BASE}/{f.stem}/"
+        ld = {"@context": "https://schema.org", "@type": "AboutPage" if f.stem == "about" else "WebPage",
+              "url": url, "mainEntity": {"@id": f"{BASE}/#person", "@type": "Person", "name": "Aslan Mammadli"}}
+        head = f'<script type="application/ld+json">{json.dumps(ld)}</script>\n'
+        body = f'''  <main>
+    <h1 class="page-title">{esc(meta["title"])}</h1>
+    <div class="prose">
+{markdown.markdown(m.group(2), extensions=["extra", "sane_lists"])}
+    </div>
+  </main>'''
+        out = SITE / f.stem / "index.html"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(page(f'{meta["title"]} | Aslan Mammadli', meta["description"], url, body, head))
+        PAGES.append(url)
+
     # Blog index
     cards = "\n".join(card(p) for p in posts) or "      <p>No posts yet.</p>"
     body = f'''  <main>
@@ -131,7 +155,7 @@ def main():
 
     # Sitemap
     today = datetime.date.today().isoformat()
-    urls = [(BASE + "/", today), (BASE + "/blog/", today)] + [(f'{BASE}/blog/{p["slug"]}/', p["date"]) for p in posts]
+    urls = [(BASE + "/", today)] + [(u, today) for u in PAGES] + [(BASE + "/blog/", today)] + [(f'{BASE}/blog/{p["slug"]}/', p["date"]) for p in posts]
     sm = "\n".join(f"  <url><loc>{u}</loc><lastmod>{d}</lastmod></url>" for u, d in urls)
     (SITE / "sitemap.xml").write_text(f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{sm}\n</urlset>\n')
     print(f"built {len(posts)} posts")
