@@ -21,7 +21,7 @@ h2{font-size:16px;font-weight:500;margin:0 0 12px}
 .inline a{color:var(--fg)}
 .list{list-style:none;margin:0;padding:0}
 .list li{display:grid;grid-template-columns:96px 1fr;gap:16px;padding:6px 0}
-.list .k{color:var(--faint);font-variant-numeric:tabular-nums;white-space:nowrap}
+.list .k{color:var(--faint);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .list .v strong{font-weight:500}
 .list .v a{color:var(--fg)}
 .list .v span{display:block;color:var(--muted)}
