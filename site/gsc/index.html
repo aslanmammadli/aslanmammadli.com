@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>Search Console Dashboard</title>
+<link rel="icon" href="/favicon-32.png">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root{--fg:#0f172a;--muted:#475569;--faint:#64748b;--line:#e2e8f0;--bg:#fff;--soft:#f8fafc;--hover:#f1f5f9;--blue:#2563eb;--violet:#7c3aed;--up:#15803d;--down:#b91c1c}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px 64px}
+header{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;padding:28px 0 20px;border-bottom:1px solid var(--line)}
+header h1{font-size:18px;font-weight:600;margin:0}
+header .sub{color:var(--faint);font-size:13px}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+select,button{font:inherit;font-size:14px;padding:7px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--fg);cursor:pointer}
+button.primary{background:var(--fg);color:#fff;border-color:var(--fg)}
+button:hover{background:var(--hover)}button.primary:hover{background:#1e293b}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:24px 0}
+.kpi{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--soft)}
+.kpi .l{color:var(--faint);font-size:13px}
+.kpi .v{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:2px}
+.kpi .d{font-size:13px;font-variant-numeric:tabular-nums}
+.up{color:var(--up)}.down{color:var(--down)}.flat{color:var(--faint)}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font-size:12px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.03em;cursor:pointer;user-select:none}
+th:first-child,td:first-child{text-align:left}
+tbody tr.site{cursor:pointer}tbody tr.site:hover{background:var(--hover)}
+tr.active{background:#eff6ff}
+td small{display:block;font-size:12px}
+.name{font-weight:500;max-width:300px;overflow:hidden;text-overflow:ellipsis}
+.tag{font-size:11px;color:var(--faint);border:1px solid var(--line);border-radius:4px;padding:0 5px;margin-left:6px}
+svg.spark{display:block}
+.panel{border:1px solid var(--line);border-radius:12px;padding:18px;margin-top:24px}
+.panel h2{font-size:16px;font-weight:600;margin:0 0 4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:18px}
+.grid2 h3{font-size:14px;font-weight:600;margin:0 0 6px}
+.grid2 td,.grid2 th{padding:6px 6px;font-size:13px}
+.grid2 td:first-child{max-width:330px;overflow:hidden;text-overflow:ellipsis}
+.legend{display:flex;gap:16px;font-size:13px;color:var(--muted);margin:8px 0}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.chart{position:relative}
+.tip{position:absolute;pointer-events:none;background:var(--fg);color:#fff;font-size:12px;padding:6px 8px;border-radius:6px;white-space:nowrap;display:none}
+.center{text-align:center;padding:96px 0;color:var(--muted)}
+.center h2{color:var(--fg);font-size:22px;margin:0 0 8px}
+.err{background:#fef2f2;color:var(--down);border:1px solid #fecaca;border-radius:8px;padding:10px 14px;margin-top:16px}
+.note{color:var(--faint);font-size:12px;margin-top:20px}
+@media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}.hide-m{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Search Console Dashboard</h1>
+      <div class="sub" id="range">Your sites and client sites</div>
+    </div>
+    <div class="controls" id="controls" hidden>
+      <select id="days">
+        <option value="7">Last 7 days</option>
+        <option value="28" selected>Last 28 days</option>
+        <option value="90">Last 3 months</option>
+        <option value="180">Last 6 months</option>
+        <option value="480">Last 16 months</option>
+      </select>
+      <select id="stype">
+        <option value="web" selected>Web</option>
+        <option value="image">Image</option>
+        <option value="video">Video</option>
+        <option value="news">News</option>
+        <option value="discover">Discover</option>
+      </select>
+      <button id="refresh">Refresh</button>
+      <button id="csv">Export CSV</button>
+      <button id="signout">Sign out</button>
+    </div>
+  </header>
+
+  <div id="login" class="center">
+    <h2>Sign in to view Search Console</h2>
+    <p>Use the Google account that has access to your and your clients' properties.</p>
+    <button class="primary" id="signin">Sign in with Google</button>
+    <div id="cfgerr"></div>
+  </div>
+
+  <div id="app" hidden>
+    <div class="kpis" id="kpis"></div>
+    <table id="tbl">
+      <thead><tr>
+        <th data-k="name">Property</th>
+        <th data-k="clicks">Clicks</th>
+        <th data-k="impressions">Impressions</th>
+        <th data-k="ctr">CTR</th>
+        <th data-k="position">Avg position</th>
+        <th class="hide-m">Clicks trend</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div id="detail"></div>
+    <p class="note">Data from the Google Search Console API. Search Console data lags about 2 days, so the range ends 2 days ago. Change is shown against the previous period of equal length. Your sign in stays in this browser tab only.</p>
+  </div>
+</div>
+
+<script>
+/* ===== CONFIG: paste your Google OAuth Web Client ID here ===== */
+const CLIENT_ID = "PASTE_YOUR_CLIENT_ID.apps.googleusercontent.com";
+/* ============================================================== */
+
+const API = "https://www.googleapis.com/webmasters/v3";
+const SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
+let token = null, tokenClient = null, sites = [], sortKey = "clicks", sortDir = -1, selected = null;
+const $ = id => document.getElementById(id);
+const fmt = n => n >= 1e6 ? (n/1e6).toFixed(1)+"M" : n >= 1e4 ? (n/1e3).toFixed(1)+"K" : Math.round(n).toLocaleString();
+const pct = n => (n*100).toFixed(2)+"%";
+const iso = d => d.toISOString().slice(0,10);
+const dayMs = 864e5;
+
+function ranges(){
+  const days = +$("days").value;
+  const end = new Date(Date.now() - 2*dayMs);
+  const start = new Date(end - (days-1)*dayMs);
+  const pEnd = new Date(start - dayMs);
+  const pStart = new Date(pEnd - (days-1)*dayMs);
+  return {cur:[iso(start), iso(end)], prev:[iso(pStart), iso(pEnd)]};
+}
+
+function label(url){
+  if(url.startsWith("sc-domain:")) return [url.slice(10), "domain"];
+  return [url.replace(/^https?:\/\//,"").replace(/\/$/,""), "url"];
+}
+
+async function api(path, body){
+  const r = await fetch(API+path, {
+    method: body ? "POST" : "GET",
+    headers: {"Authorization":"Bearer "+token, "Content-Type":"application/json"},
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if(r.status === 401){ token = null; sessionStorage.removeItem("gsc_t"); showLogin(); throw new Error("Session expired, sign in again."); }
+  const j = await r.json();
+  if(!r.ok) throw new Error(j.error?.message || ("HTTP "+r.status));
+  return j;
+}
+const query = (site, body) => api(`/sites/${encodeURIComponent(site)}/searchAnalytics/query`, {type:$("stype").value, dataState:"all", ...body});
+
+function sumRows(rows){
+  let c=0,i=0,p=0;
+  for(const r of rows||[]){ c+=r.clicks; i+=r.impressions; p+=r.position*r.impressions; }
+  return {clicks:c, impressions:i, ctr: i? c/i : 0, position: i? p/i : 0};
+}
+
+async function load(){
+  $("rows").innerHTML = `<tr><td colspan="6" class="flat">Loading properties…</td></tr>`;
+  $("detail").innerHTML = ""; selected = null;
+  const R = ranges();
+  $("range").textContent = `${R.cur[0]} to ${R.cur[1]}  ·  compared with ${R.prev[0]} to ${R.prev[1]}`;
+  try{
+    const list = (await api("/sites")).siteEntry || [];
+    const usable = list.filter(s => s.permissionLevel !== "siteUnverifiedUser");
+    if(!usable.length){ $("rows").innerHTML = `<tr><td colspan="6">No verified properties on this Google account.</td></tr>`; renderKpis(); return; }
+    sites = await Promise.all(usable.map(async s => {
+      const [name, kind] = label(s.siteUrl);
+      try{
+        const [cur, prev] = await Promise.all([
+          query(s.siteUrl, {startDate:R.cur[0], endDate:R.cur[1], dimensions:["date"], rowLimit:25000}),
+          query(s.siteUrl, {startDate:R.prev[0], endDate:R.prev[1], dimensions:["date"], rowLimit:25000})
+        ]);
+        return {url:s.siteUrl, name, kind, perm:s.permissionLevel, daily:cur.rows||[], ...sumRows(cur.rows), prev:sumRows(prev.rows)};
+      }catch(e){
+        return {url:s.siteUrl, name, kind, perm:s.permissionLevel, daily:[], clicks:0, impressions:0, ctr:0, position:0, prev:sumRows([]), error:e.message};
+      }
+    }));
+    render();
+  }catch(e){
+    $("rows").innerHTML = `<tr><td colspan="6"><div class="err">${e.message}</div></td></tr>`;
+  }
+}
+
+function delta(cur, prev, invert){
+  if(!prev) return cur ? `<small class="flat">new</small>` : `<small class="flat">no change</small>`;
+  const d = (cur-prev)/prev, good = invert ? d<0 : d>0;
+  if(Math.abs(d) < 0.005) return `<small class="flat">0%</small>`;
+  return `<small class="${good?"up":"down"}">${d>0?"▲":"▼"} ${Math.abs(d*100).toFixed(1)}%</small>`;
+}
+function posDelta(cur, prev){
+  if(!prev || !cur) return `<small class="flat">n/a</small>`;
+  const d = cur-prev;
+  if(Math.abs(d) < 0.05) return `<small class="flat">0.0</small>`;
+  return `<small class="${d<0?"up":"down"}">${d<0?"▲":"▼"} ${Math.abs(d).toFixed(1)}</small>`;
+}
+
+function renderKpis(){
+  const t = {clicks:0, impressions:0, p:0}, pv = {clicks:0, impressions:0, p:0};
+  for(const s of sites){ t.clicks+=s.clicks; t.impressions+=s.impressions; t.p+=s.position*s.impressions; pv.clicks+=s.prev.clicks; pv.impressions+=s.prev.impressions; pv.p+=s.prev.position*s.prev.impressions; }
+  const ctr = t.impressions? t.clicks/t.impressions:0, pctr = pv.impressions? pv.clicks/pv.impressions:0;
+  const pos = t.impressions? t.p/t.impressions:0, ppos = pv.impressions? pv.p/pv.impressions:0;
+  const k = (l,v,d) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;
+  $("kpis").innerHTML =
+    k("Total clicks", fmt(t.clicks), delta(t.clicks, pv.clicks)) +
+    k("Total impressions", fmt(t.impressions), delta(t.impressions, pv.impressions)) +
+    k("Average CTR", pct(ctr), delta(ctr, pctr)) +
+    k(`Average position · ${sites.length} properties`, pos? pos.toFixed(1):"n/a", posDelta(pos, ppos));
+}
+
+function spark(daily){
+  const w=120,h=28;
+  if(daily.length<2) return `<svg class="spark" width="${w}" height="${h}"></svg>`;
+  const v = daily.map(r=>r.clicks), m = Math.max(1,...v);
+  const pts = v.map((y,i)=>`${(i/(v.length-1)*w).toFixed(1)},${(h-2-(y/m)*(h-4)).toFixed(1)}`).join(" ");
+  return `<svg class="spark" width="${w}" height="${h}" style="margin-left:auto"><polyline fill="none" stroke="#2563eb" stroke-width="1.5" points="${pts}"/></svg>`;
+}
+
+function render(){
+  renderKpis();
+  const list = [...sites].sort((a,b)=>{
+    const x=a[sortKey], y=b[sortKey];
+    if(sortKey==="name") return sortDir*-1*x.localeCompare(y);
+    if(sortKey==="position"){ const xa=x||1e9, ya=y||1e9; return sortDir*-1*(xa-ya); }
+    return sortDir*(x-y);
+  });
+  $("rows").innerHTML = list.map(s => `
+    <tr class="site ${selected===s.url?"active":""}" data-u="${s.url}">
+      <td><span class="name">${s.name}</span><span class="tag">${s.kind}</span>${s.error?`<small class="down">${s.error}</small>`:""}</td>
+      <td>${fmt(s.clicks)}${delta(s.clicks, s.prev.clicks)}</td>
+      <td>${fmt(s.impressions)}${delta(s.impressions, s.prev.impressions)}</td>
+      <td>${pct(s.ctr)}${delta(s.ctr, s.prev.ctr)}</td>
+      <td>${s.position? s.position.toFixed(1):"n/a"}${posDelta(s.position, s.prev.position)}</td>
+      <td class="hide-m">${spark(s.daily)}</td>
+    </tr>`).join("");
+  document.querySelectorAll("tr.site").forEach(tr => tr.onclick = () => openSite(tr.dataset.u));
+}
+
+async function openSite(url){
+  selected = url; render();
+  const s = sites.find(x=>x.url===url), R = ranges();
+  $("detail").innerHTML = `<div class="panel"><h2>${s.name}</h2><div class="flat">Loading details…</div></div>`;
+  try{
+    const [q, p, c, d] = await Promise.all([
+      query(url, {startDate:R.cur[0], endDate:R.cur[1], dimensions:["query"], rowLimit:25}),
+      query(url, {startDate:R.cur[0], endDate:R.cur[1], dimensions:["page"], rowLimit:25}),
+      query(url, {startDate:R.cur[0], endDate:R.cur[1], dimensions:["country"], rowLimit:10}),
+      query(url, {startDate:R.cur[0], endDate:R.cur[1], dimensions:["device"], rowLimit:5})
+    ]);
+    const t = (title, rows, f=x=>x) => `<div><h3>${title}</h3><table><thead><tr><th></th><th>Clicks</th><th>Impr.</th><th>CTR</th><th>Pos.</th></tr></thead><tbody>${
+      (rows||[]).map(r=>`<tr><td title="${r.keys[0]}">${f(r.keys[0])}</td><td>${fmt(r.clicks)}</td><td>${fmt(r.impressions)}</td><td>${pct(r.ctr)}</td><td>${r.position.toFixed(1)}</td></tr>`).join("") || `<tr><td colspan="5" class="flat">No data</td></tr>`
+    }</tbody></table></div>`;
+    const short = u => u.replace(/^https?:\/\/[^/]+/,"") || "/";
+    $("detail").innerHTML = `<div class="panel">
+      <h2>${s.name}</h2><div class="flat" style="font-size:13px">${s.url} · ${s.perm.replace("site","").replace("User"," user")}</div>
+      <div class="legend"><span><i style="background:#2563eb"></i>Clicks</span><span><i style="background:#7c3aed"></i>Impressions</span></div>
+      <div class="chart" id="chart"></div>
+      <div class="grid2">${t("Top queries", q.rows)}${t("Top pages", p.rows, short)}${t("Countries", c.rows, x=>x.toUpperCase())}${t("Devices", d.rows, x=>x.toLowerCase())}</div>
+    </div>`;
+    drawChart(s.daily);
+    $("detail").scrollIntoView({behavior:"smooth"});
+  }catch(e){
+    $("detail").innerHTML = `<div class="panel"><h2>${s.name}</h2><div class="err">${e.message}</div></div>`;
+  }
+}
+
+function drawChart(daily){
+  const el = $("chart"), W = el.clientWidth || 900, H = 220, P = {l:44,r:52,t:10,b:24};
+  if(!daily.length){ el.innerHTML = `<div class="flat">No daily data</div>`; return; }
+  const n = daily.length, cx = Math.max(1,...daily.map(r=>r.clicks)), ix = Math.max(1,...daily.map(r=>r.impressions));
+  const X = i => P.l + (n===1?0:i/(n-1))*(W-P.l-P.r);
+  const Yc = v => H-P.b - v/cx*(H-P.t-P.b), Yi = v => H-P.b - v/ix*(H-P.t-P.b);
+  const line = (f,k) => daily.map((r,i)=>`${X(i).toFixed(1)},${f(r[k]).toFixed(1)}`).join(" ");
+  let grid = "";
+  for(let g=0; g<=4; g++){ const y = P.t + g*(H-P.t-P.b)/4;
+    grid += `<line x1="${P.l}" x2="${W-P.r}" y1="${y}" y2="${y}" stroke="#e2e8f0"/>
+      <text x="${P.l-6}" y="${y+4}" text-anchor="end" font-size="11" fill="#2563eb">${fmt(cx*(1-g/4))}</text>
+      <text x="${W-P.r+6}" y="${y+4}" font-size="11" fill="#7c3aed">${fmt(ix*(1-g/4))}</text>`; }
+  const step = Math.ceil(n/8); let xl = "";
+  daily.forEach((r,i)=>{ if(i%step===0 || i===n-1) xl += `<text x="${X(i)}" y="${H-6}" text-anchor="middle" font-size="11" fill="#64748b">${r.keys[0].slice(5)}</text>`; });
+  el.innerHTML = `<svg width="${W}" height="${H}">${grid}${xl}
+    <polyline fill="none" stroke="#7c3aed" stroke-width="1.5" opacity=".8" points="${line(Yi,"impressions")}"/>
+    <polyline fill="none" stroke="#2563eb" stroke-width="2" points="${line(Yc,"clicks")}"/>
+    <line id="cur" y1="${P.t}" y2="${H-P.b}" stroke="#94a3b8" stroke-dasharray="3 3" visibility="hidden"/>
+    <rect x="${P.l}" y="0" width="${W-P.l-P.r}" height="${H}" fill="transparent" id="hit"/></svg><div class="tip" id="tip"></div>`;
+  const hit = el.querySelector("#hit"), tip = el.querySelector("#tip"), cur = el.querySelector("#cur");
+  hit.onmousemove = e => {
+    const x = e.offsetX, i = Math.max(0, Math.min(n-1, Math.round((x-P.l)/(W-P.l-P.r)*(n-1)))), r = daily[i];
+    cur.setAttribute("x1", X(i)); cur.setAttribute("x2", X(i)); cur.setAttribute("visibility","visible");
+    tip.style.display = "block"; tip.style.left = Math.min(X(i)+10, W-170)+"px"; tip.style.top = "10px";
+    tip.innerHTML = `${r.keys[0]}<br>Clicks ${r.clicks.toLocaleString()} · Impr. ${r.impressions.toLocaleString()}<br>CTR ${pct(r.ctr)} · Pos. ${r.position.toFixed(1)}`;
+  };
+  hit.onmouseleave = () => { tip.style.display = "none"; cur.setAttribute("visibility","hidden"); };
+}
+
+function exportCsv(){
+  const R = ranges(), head = "property,clicks,impressions,ctr,position,prev_clicks,prev_impressions,prev_ctr,prev_position";
+  const lines = sites.map(s => [s.url, s.clicks, s.impressions, s.ctr.toFixed(4), s.position.toFixed(2), s.prev.clicks, s.prev.impressions, s.prev.ctr.toFixed(4), s.prev.position.toFixed(2)].join(","));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([head+"\n"+lines.join("\n")], {type:"text/csv"}));
+  a.download = `gsc_${R.cur[0]}_${R.cur[1]}.csv`; a.click();
+}
+
+function showLogin(){ $("login").hidden = false; $("app").hidden = true; $("controls").hidden = true; }
+function showApp(){ $("login").hidden = true; $("app").hidden = false; $("controls").hidden = false; load(); }
+
+function initAuth(){
+  if(CLIENT_ID.startsWith("PASTE")){ $("cfgerr").innerHTML = `<div class="err">Google Client ID not set yet.</div>`; return; }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID, scope: SCOPE,
+    callback: r => {
+      if(r.error){ $("cfgerr").innerHTML = `<div class="err">${r.error}</div>`; return; }
+      token = r.access_token;
+      sessionStorage.setItem("gsc_t", JSON.stringify({t:token, exp:Date.now()+(r.expires_in-60)*1000}));
+      showApp();
+    }
+  });
+}
+
+$("signin").onclick = () => { if(!tokenClient) initAuth(); tokenClient && tokenClient.requestAccessToken(); };
+$("signout").onclick = () => { if(token) google.accounts.oauth2.revoke(token); token=null; sessionStorage.removeItem("gsc_t"); showLogin(); };
+$("refresh").onclick = load; $("days").onchange = load; $("stype").onchange = load; $("csv").onclick = exportCsv;
+document.querySelectorAll("th[data-k]").forEach(th => th.onclick = () => { const k = th.dataset.k; sortDir = sortKey===k ? -sortDir : -1; sortKey = k; render(); });
+window.addEventListener("resize", () => { const s = sites.find(x=>x.url===selected); if(s && $("chart")) drawChart(s.daily); });
+
+window.addEventListener("load", () => {
+  const saved = JSON.parse(sessionStorage.getItem("gsc_t") || "null");
+  const wait = setInterval(() => { if(window.google?.accounts){ clearInterval(wait); initAuth();
+    if(saved && saved.exp > Date.now()){ token = saved.t; showApp(); } } }, 100);
+});
+</script>
+</body>
+</html>
