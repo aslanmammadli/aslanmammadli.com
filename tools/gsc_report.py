@@ -110,7 +110,7 @@ def run(c):
         except Exception as e:
             errors.append(f"{name}: {e}")
     out.sort(key=lambda s: -s["day"]["impressions"])
-    report = {"generated_utc": datetime.datetime.utcnow().isoformat(timespec="minutes"),
+    report = {"generated_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="minutes"),
               "date": str(day), "compared_with": str(prev), "sites": out, "errors": errors}
     os.makedirs(WEB_DIR, exist_ok=True)
     path = f"{WEB_DIR}/r-{c['report_key']}.json"
