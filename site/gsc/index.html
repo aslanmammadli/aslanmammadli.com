@@ -48,6 +48,11 @@ svg.spark{display:block}
 .center{text-align:center;padding:96px 0;color:var(--muted)}
 .center h2{color:var(--fg);font-size:22px;margin:0 0 8px}
 .err{background:#fef2f2;color:var(--down);border:1px solid #fecaca;border-radius:8px;padding:10px 14px;margin-top:16px}
+.accts{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.acct{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:4px 6px 4px 12px;font-size:13px;background:var(--soft)}
+.acct .dot{width:8px;height:8px;border-radius:50%;background:var(--up)}
+.acct.exp .dot{background:#f59e0b}
+.acct button{padding:2px 8px;font-size:12px;border-radius:999px}
 .note{color:var(--faint);font-size:12px;margin-top:20px}
 @media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}.hide-m{display:none}}
 </style>
@@ -76,7 +81,8 @@ svg.spark{display:block}
       </select>
       <button id="refresh">Refresh</button>
       <button id="csv">Export CSV</button>
-      <button id="signout">Sign out</button>
+      <button id="addacct">Add account</button>
+      <button id="signout">Sign out all</button>
     </div>
   </header>
 
@@ -88,6 +94,7 @@ svg.spark{display:block}
   </div>
 
   <div id="app" hidden>
+    <div class="accts" id="accts"></div>
     <div class="kpis" id="kpis"></div>
     <table id="tbl">
       <thead><tr>
@@ -101,7 +108,7 @@ svg.spark{display:block}
       <tbody id="rows"></tbody>
     </table>
     <div id="detail"></div>
-    <p class="note">Data from the Google Search Console API. Search Console data lags about 2 days, so the range ends 2 days ago. Change is shown against the previous period of equal length. Your sign in stays in this browser tab only.</p>
+    <p class="note">Data from the Google Search Console API. Search Console data lags about 2 days, so the range ends 2 days ago. Change is shown against the previous period of equal length. Google sessions last about 1 hour; after that click Reconnect on an account. Sign out all removes every account from this browser.</p>
   </div>
 </div>
 
@@ -111,8 +118,9 @@ const CLIENT_ID = "270075953810-iig309062qcrh0anb39lj6chhffe47pn.apps.googleuser
 /* ============================================================== */
 
 const API = "https://www.googleapis.com/webmasters/v3";
-const SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
-let token = null, tokenClient = null, sites = [], sortKey = "clicks", sortDir = -1, selected = null;
+const SCOPE = "https://www.googleapis.com/auth/webmasters.readonly openid email";
+const STORE = "gsc_accounts";
+let accounts = [], tokenClient = null, sites = [], sortKey = "clicks", sortDir = -1, selected = null;
 const $ = id => document.getElementById(id);
 const fmt = n => n >= 1e6 ? (n/1e6).toFixed(1)+"M" : n >= 1e4 ? (n/1e3).toFixed(1)+"K" : Math.round(n).toLocaleString();
 const pct = n => (n*100).toFixed(2)+"%";
@@ -133,18 +141,32 @@ function label(url){
   return [url.replace(/^https?:\/\//,"").replace(/\/$/,""), "url"];
 }
 
-async function api(path, body){
+const saveAccts = () => { try{ localStorage.setItem(STORE, JSON.stringify(accounts)); }catch(e){} };
+const live = () => accounts.filter(a => a.exp > Date.now());
+
+async function api(path, body, acct){
   const r = await fetch(API+path, {
     method: body ? "POST" : "GET",
-    headers: {"Authorization":"Bearer "+token, "Content-Type":"application/json"},
+    headers: {"Authorization":"Bearer "+acct.token, "Content-Type":"application/json"},
     body: body ? JSON.stringify(body) : undefined
   });
-  if(r.status === 401){ token = null; sessionStorage.removeItem("gsc_t"); showLogin(); throw new Error("Session expired, sign in again."); }
+  if(r.status === 401){ acct.exp = 0; saveAccts(); renderAccts(); throw new Error(`${acct.email}: session expired, click Reconnect.`); }
   const j = await r.json();
   if(!r.ok) throw new Error(j.error?.message || ("HTTP "+r.status));
   return j;
 }
-const query = (site, body) => api(`/sites/${encodeURIComponent(site)}/searchAnalytics/query`, {type:$("stype").value, dataState:"all", ...body});
+const query = (site, body, acct) => api(`/sites/${encodeURIComponent(site)}/searchAnalytics/query`, {type:$("stype").value, dataState:"all", ...body}, acct);
+
+function renderAccts(){
+  const now = Date.now();
+  $("accts").innerHTML = accounts.map((a,i) => `<span class="acct ${a.exp>now?"":"exp"}" title="${a.exp>now?"Connected":"Session expired"}"><span class="dot"></span>${a.email}${a.exp>now?"":` <button data-r="${i}">Reconnect</button>`}<button data-x="${i}" title="Remove account">✕</button></span>`).join("");
+  $("accts").querySelectorAll("[data-r]").forEach(b => b.onclick = () => signIn(accounts[+b.dataset.r].email));
+  $("accts").querySelectorAll("[data-x]").forEach(b => b.onclick = () => {
+    const a = accounts.splice(+b.dataset.x, 1)[0];
+    try{ google.accounts.oauth2.revoke(a.token); }catch(e){}
+    saveAccts(); accounts.length ? load() : showLogin();
+  });
+}
 
 function sumRows(rows){
   let c=0,i=0,p=0;
@@ -157,20 +179,32 @@ async function load(){
   $("detail").innerHTML = ""; selected = null;
   const R = ranges();
   $("range").textContent = `${R.cur[0]} to ${R.cur[1]}  ·  compared with ${R.prev[0]} to ${R.prev[1]}`;
+  renderAccts();
+  const L = live();
+  if(!L.length){ sites = []; renderKpis(); $("rows").innerHTML = `<tr><td colspan="6" class="flat">All sessions expired. Click Reconnect on each account above.</td></tr>`; return; }
   try{
-    const list = (await api("/sites")).siteEntry || [];
-    const usable = list.filter(s => s.permissionLevel !== "siteUnverifiedUser");
-    if(!usable.length){ $("rows").innerHTML = `<tr><td colspan="6">No verified properties on this Google account.</td></tr>`; renderKpis(); return; }
+    const seen = new Map(), errs = [];
+    await Promise.all(L.map(async a => {
+      try{
+        for(const s of (await api("/sites", null, a)).siteEntry || []){
+          if(s.permissionLevel === "siteUnverifiedUser") continue;
+          const prevA = seen.get(s.siteUrl);
+          if(!prevA || (prevA.permissionLevel !== "siteOwner" && s.permissionLevel === "siteOwner")) seen.set(s.siteUrl, {...s, acct:a});
+        }
+      }catch(e){ errs.push(e.message); }
+    }));
+    const usable = [...seen.values()];
+    if(!usable.length){ $("rows").innerHTML = `<tr><td colspan="6">No verified properties on these accounts. ${errs.join(" ")}</td></tr>`; renderKpis(); return; }
     sites = await Promise.all(usable.map(async s => {
       const [name, kind] = label(s.siteUrl);
       try{
         const [cur, prev] = await Promise.all([
-          query(s.siteUrl, {startDate:R.cur[0], endDate:R.cur[1], dimensions:["date"], rowLimit:25000}),
-          query(s.siteUrl, {startDate:R.prev[0], endDate:R.prev[1], dimensions:["date"], rowLimit:25000})
+          query(s.siteUrl, {startDate:R.cur[0], endDate:R.cur[1], dimensions:["date"], rowLimit:25000}, s.acct),
+          query(s.siteUrl, {startDate:R.prev[0], endDate:R.prev[1], dimensions:["date"], rowLimit:25000}, s.acct)
         ]);
-        return {url:s.siteUrl, name, kind, perm:s.permissionLevel, daily:cur.rows||[], ...sumRows(cur.rows), prev:sumRows(prev.rows)};
+        return {url:s.siteUrl, name, kind, perm:s.permissionLevel, acct:s.acct, daily:cur.rows||[], ...sumRows(cur.rows), prev:sumRows(prev.rows)};
       }catch(e){
-        return {url:s.siteUrl, name, kind, perm:s.permissionLevel, daily:[], clicks:0, impressions:0, ctr:0, position:0, prev:sumRows([]), error:e.message};
+        return {url:s.siteUrl, name, kind, perm:s.permissionLevel, acct:s.acct, daily:[], clicks:0, impressions:0, ctr:0, position:0, prev:sumRows([]), error:e.message};
       }
     }));
     render();
@@ -223,7 +257,7 @@ function render(){
   });
   $("rows").innerHTML = list.map(s => `
     <tr class="site ${selected===s.url?"active":""}" data-u="${s.url}">
-      <td><span class="name">${s.name}</span><span class="tag">${s.kind}</span>${s.error?`<small class="down">${s.error}</small>`:""}</td>
+      <td><span class="name">${s.name}</span><span class="tag">${s.kind}</span>${accounts.length>1?`<small class="flat">${s.acct.email}</small>`:""}${s.error?`<small class="down">${s.error}</small>`:""}</td>
       <td>${fmt(s.clicks)}${delta(s.clicks, s.prev.clicks)}</td>
       <td>${fmt(s.impressions)}${delta(s.impressions, s.prev.impressions)}</td>
       <td>${pct(s.ctr)}${delta(s.ctr, s.prev.ctr)}</td>
@@ -239,17 +273,17 @@ async function openSite(url){
   $("detail").innerHTML = `<div class="panel"><h2>${s.name}</h2><div class="flat">Loading details…</div></div>`;
   try{
     const [q, p, c, d] = await Promise.all([
-      query(url, {startDate:R.cur[0], endDate:R.cur[1], dimensions:["query"], rowLimit:25}),
-      query(url, {startDate:R.cur[0], endDate:R.cur[1], dimensions:["page"], rowLimit:25}),
-      query(url, {startDate:R.cur[0], endDate:R.cur[1], dimensions:["country"], rowLimit:10}),
-      query(url, {startDate:R.cur[0], endDate:R.cur[1], dimensions:["device"], rowLimit:5})
+      query(url, {startDate:R.cur[0], endDate:R.cur[1], dimensions:["query"], rowLimit:25}, s.acct),
+      query(url, {startDate:R.cur[0], endDate:R.cur[1], dimensions:["page"], rowLimit:25}, s.acct),
+      query(url, {startDate:R.cur[0], endDate:R.cur[1], dimensions:["country"], rowLimit:10}, s.acct),
+      query(url, {startDate:R.cur[0], endDate:R.cur[1], dimensions:["device"], rowLimit:5}, s.acct)
     ]);
     const t = (title, rows, f=x=>x) => `<div><h3>${title}</h3><table><thead><tr><th></th><th>Clicks</th><th>Impr.</th><th>CTR</th><th>Pos.</th></tr></thead><tbody>${
       (rows||[]).map(r=>`<tr><td title="${r.keys[0]}">${f(r.keys[0])}</td><td>${fmt(r.clicks)}</td><td>${fmt(r.impressions)}</td><td>${pct(r.ctr)}</td><td>${r.position.toFixed(1)}</td></tr>`).join("") || `<tr><td colspan="5" class="flat">No data</td></tr>`
     }</tbody></table></div>`;
     const short = u => u.replace(/^https?:\/\/[^/]+/,"") || "/";
     $("detail").innerHTML = `<div class="panel">
-      <h2>${s.name}</h2><div class="flat" style="font-size:13px">${s.url} · ${s.perm.replace("site","").replace("User"," user")}</div>
+      <h2>${s.name}</h2><div class="flat" style="font-size:13px">${s.url} · ${s.perm.replace("site","").replace("User"," user")} · via ${s.acct.email}</div>
       <div class="legend"><span><i style="background:#2563eb"></i>Clicks</span><span><i style="background:#7c3aed"></i>Impressions</span></div>
       <div class="chart" id="chart"></div>
       <div class="grid2">${t("Top queries", q.rows)}${t("Top pages", p.rows, short)}${t("Countries", c.rows, x=>x.toUpperCase())}${t("Devices", d.rows, x=>x.toLowerCase())}</div>
@@ -291,8 +325,8 @@ function drawChart(daily){
 }
 
 function exportCsv(){
-  const R = ranges(), head = "property,clicks,impressions,ctr,position,prev_clicks,prev_impressions,prev_ctr,prev_position";
-  const lines = sites.map(s => [s.url, s.clicks, s.impressions, s.ctr.toFixed(4), s.position.toFixed(2), s.prev.clicks, s.prev.impressions, s.prev.ctr.toFixed(4), s.prev.position.toFixed(2)].join(","));
+  const R = ranges(), head = "account,property,clicks,impressions,ctr,position,prev_clicks,prev_impressions,prev_ctr,prev_position";
+  const lines = sites.map(s => [s.acct.email, s.url, s.clicks, s.impressions, s.ctr.toFixed(4), s.position.toFixed(2), s.prev.clicks, s.prev.impressions, s.prev.ctr.toFixed(4), s.prev.position.toFixed(2)].join(","));
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([head+"\n"+lines.join("\n")], {type:"text/csv"}));
   a.download = `gsc_${R.cur[0]}_${R.cur[1]}.csv`; a.click();
@@ -305,25 +339,32 @@ function initAuth(){
   if(CLIENT_ID.startsWith("PASTE")){ $("cfgerr").innerHTML = `<div class="err">Google Client ID not set yet.</div>`; return; }
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID, scope: SCOPE,
-    callback: r => {
+    callback: async r => {
       if(r.error){ $("cfgerr").innerHTML = `<div class="err">${r.error}</div>`; return; }
-      token = r.access_token;
-      sessionStorage.setItem("gsc_t", JSON.stringify({t:token, exp:Date.now()+(r.expires_in-60)*1000}));
-      showApp();
+      let email = "account " + (accounts.length+1);
+      try{ const u = await (await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {headers:{Authorization:"Bearer "+r.access_token}})).json(); if(u.email) email = u.email; }catch(e){}
+      const acct = {email, token:r.access_token, exp:Date.now()+(r.expires_in-60)*1000};
+      const i = accounts.findIndex(a => a.email === email);
+      if(i >= 0) accounts[i] = acct; else accounts.push(acct);
+      saveAccts(); showApp();
     }
   });
 }
+function signIn(hint){
+  if(!tokenClient) initAuth();
+  if(tokenClient) tokenClient.requestAccessToken(hint ? {prompt:"", hint} : {prompt:"select_account"});
+}
 
-$("signin").onclick = () => { if(!tokenClient) initAuth(); tokenClient && tokenClient.requestAccessToken(); };
-$("signout").onclick = () => { if(token) google.accounts.oauth2.revoke(token); token=null; sessionStorage.removeItem("gsc_t"); showLogin(); };
+$("signin").onclick = () => signIn();
+$("addacct").onclick = () => signIn();
+$("signout").onclick = () => { for(const a of accounts){ try{ google.accounts.oauth2.revoke(a.token); }catch(e){} } accounts = []; saveAccts(); sites = []; showLogin(); };
 $("refresh").onclick = load; $("days").onchange = load; $("stype").onchange = load; $("csv").onclick = exportCsv;
 document.querySelectorAll("th[data-k]").forEach(th => th.onclick = () => { const k = th.dataset.k; sortDir = sortKey===k ? -sortDir : -1; sortKey = k; render(); });
 window.addEventListener("resize", () => { const s = sites.find(x=>x.url===selected); if(s && $("chart")) drawChart(s.daily); });
 
 window.addEventListener("load", () => {
-  const saved = JSON.parse(sessionStorage.getItem("gsc_t") || "null");
-  const wait = setInterval(() => { if(window.google?.accounts){ clearInterval(wait); initAuth();
-    if(saved && saved.exp > Date.now()){ token = saved.t; showApp(); } } }, 100);
+  try{ accounts = JSON.parse(localStorage.getItem(STORE) || "[]"); }catch(e){ accounts = []; }
+  const wait = setInterval(() => { if(window.google?.accounts){ clearInterval(wait); initAuth(); if(accounts.length) showApp(); } }, 100);
 });
 </script>
 </body>
