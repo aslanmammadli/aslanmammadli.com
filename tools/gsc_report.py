@@ -96,17 +96,48 @@ def run(c):
         except Exception as e:
             errors.append(f"{a['email']}: {e}")
 
+    def query(site, tok, body):
+        return api(tok, f"/sites/{urllib.parse.quote(site, safe='')}/searchAnalytics/query",
+                   dict(body, type="web")).get("rows", [])
+
     def metrics(site, tok, d):
-        rows = api(tok, f"/sites/{urllib.parse.quote(site, safe='')}/searchAnalytics/query",
-                   {"startDate": str(d), "endDate": str(d), "type": "web"}).get("rows", [])
+        # dataState "all" includes fresh data that is not final yet, so recent days are not 0.
+        rows = query(site, tok, {"startDate": str(d), "endDate": str(d), "dataState": "all"})
         r = rows[0] if rows else {"clicks": 0, "impressions": 0, "ctr": 0, "position": 0}
         return {k: round(r[k], 4) for k in ("clicks", "impressions", "ctr", "position")}
+
+    def total(rows):
+        clicks = sum(r["clicks"] for r in rows)
+        impr = sum(r["impressions"] for r in rows)
+        pos = sum(r["position"] * r["impressions"] for r in rows) / impr if impr else 0
+        return {"clicks": round(clicks, 4), "impressions": round(impr, 4),
+                "ctr": round(clicks / impr, 4) if impr else 0, "position": round(pos, 4)}
+
+    def last24(site, tok):
+        # Same data as the "24 hours" view in Search Console: hourly, not final.
+        today = datetime.date.today()
+        rows = query(site, tok, {"startDate": str(today - datetime.timedelta(days=3)), "endDate": str(today),
+                                 "dimensions": ["hour"], "dataState": "hourly_all", "rowLimit": 200})
+        rows = [dict(r, t=datetime.datetime.fromisoformat(r["keys"][0])) for r in rows]
+        if not rows:
+            z = total([])
+            return z, z
+        end = max(r["t"] for r in rows) + datetime.timedelta(hours=1)
+        h24 = datetime.timedelta(hours=24)
+        cur = [r for r in rows if end - h24 <= r["t"] < end]
+        old = [r for r in rows if end - 2 * h24 <= r["t"] < end - h24]
+        return total(cur), total(old)
 
     out = []
     for site, tok in sites.items():
         name = site[10:] if site.startswith("sc-domain:") else site.split("//")[-1].rstrip("/")
         try:
-            out.append({"site": name, "day": metrics(site, tok, day), "prev": metrics(site, tok, prev)})
+            entry = {"site": name, "day": metrics(site, tok, day), "prev": metrics(site, tok, prev)}
+            try:
+                entry["last24h"], entry["prev24h"] = last24(site, tok)
+            except Exception as e:
+                errors.append(f"{name} 24h: {e}")
+            out.append(entry)
         except Exception as e:
             errors.append(f"{name}: {e}")
     out.sort(key=lambda s: -s["day"]["impressions"])
