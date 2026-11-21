@@ -23,6 +23,10 @@ Years in classrooms showed us that speaking practice is what learners get least 
 
 I have trained more than 3,000 people in entrepreneurship. I hold a B.Sc. in World Economy from Baku Engineering University.
 
+## Research
+
+- [A Robust Framework for Accelerated English Language Acquisition: Integrating Speed, Habit Formation, and Personalized Learning](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6055774), SSRN (2026). Drawn from six years of teaching more than 8,000 students. [DOI: 10.2139/ssrn.6055774](https://doi.org/10.2139/ssrn.6055774)
+
 ## Awards
 
 - **Dayaq award (2025)**: Enverson AI was named Innovative Education Company of the Year by the Small and Medium Business Development Agency of Azerbaijan (KOBİA), with the support of the Ministry of Economy.
@@ -46,5 +50,6 @@ I have trained more than 3,000 people in entrepreneurship. I hold a B.Sc. in Wor
 - [X](https://x.com/azlanmammadli)
 - [Instagram](https://www.instagram.com/azlanmammadli/)
 - [Crunchbase](https://www.crunchbase.com/person/aslan-mammadli)
+- [Google Scholar](https://scholar.google.com/citations?user=96cKcAkAAAAJ)
 - [Enverson AI](https://enverson.com/)
 - [Blog](/blog/)
