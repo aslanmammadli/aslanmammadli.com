@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<title>Prompter</title>
+<link rel="icon" href="/favicon-32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#000;color:#fff;font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+[hidden]{display:none!important}
+button,select,textarea,input{font:inherit;color:inherit}
+button{background:#1f1f1f;border:1px solid #333;border-radius:10px;padding:10px 14px;cursor:pointer}
+button.primary{background:#fff;color:#000;border-color:#fff;font-weight:600}
+.center{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center}
+.err{color:#f87171;font-size:14px}
+.muted{color:#9ca3af;font-size:14px}
+
+/* editor */
+#editor{max-width:720px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px);display:flex;flex-direction:column;gap:14px;min-height:100%}
+#editor header{display:flex;justify-content:space-between;align-items:center}
+#editor h1{font-size:18px;margin:0}
+textarea{width:100%;min-height:38vh;background:#111;border:1px solid #333;border-radius:12px;padding:14px;font-size:17px;line-height:1.5;resize:vertical}
+.row{display:grid;grid-template-columns:110px 1fr 48px;align-items:center;gap:10px;font-size:14px}
+.row output{text-align:right;color:#9ca3af;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:#fff}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+select{background:#111;border:1px solid #333;border-radius:10px;padding:10px;width:100%}
+label.chk{display:flex;gap:8px;align-items:center;font-size:14px}
+
+/* recorder */
+#stage{position:fixed;inset:0;background:#000;overflow:hidden}
+#cam{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#cam.mirror{transform:scaleX(-1)}
+#prompt{position:absolute;left:0;right:0;top:0;overflow:hidden;background:rgba(0,0,0,.55);padding-top:env(safe-area-inset-top)}
+#text{white-space:pre-wrap;font-weight:600;will-change:transform;padding-bottom:60vh}
+#text.flip{transform-origin:center}
+#guide{position:absolute;left:0;right:0;height:0;border-top:2px solid rgba(250,204,21,.7);pointer-events:none}
+#bar{position:absolute;left:0;right:0;bottom:0;padding:12px 16px calc(env(safe-area-inset-bottom) + 14px);display:flex;align-items:center;justify-content:space-between;gap:10px;background:linear-gradient(transparent,rgba(0,0,0,.7))}
+#rec{width:74px;height:74px;border-radius:50%;border:4px solid #fff;background:transparent;padding:0;display:flex;align-items:center;justify-content:center}
+#rec span{display:block;width:56px;height:56px;border-radius:50%;background:#ef4444;transition:all .2s}
+#rec.on span{width:28px;height:28px;border-radius:6px}
+#time{min-width:64px;font-variant-numeric:tabular-nums;font-size:15px}
+#time.on{color:#ef4444}
+.side{display:flex;gap:8px}
+.side button{padding:8px 10px;font-size:14px;background:rgba(0,0,0,.5)}
+#count{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:120px;font-weight:700;pointer-events:none;text-shadow:0 2px 20px rgba(0,0,0,.6)}
+#live{position:absolute;right:12px;bottom:110px;display:flex;flex-direction:column;gap:8px}
+#live button{width:44px;height:44px;padding:0;border-radius:50%;background:rgba(0,0,0,.55);font-size:18px}
+
+/* done sheet */
+#done{position:fixed;inset:0;background:rgba(0,0,0,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px}
+#done video{max-width:100%;max-height:55vh;border-radius:12px;background:#111}
+#done .btns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+</style>
+</head>
+<body>
+
+<div id="login" class="center">
+  <h1 style="margin:0;font-size:22px">Prompter</h1>
+  <p class="muted" style="margin:0">Private. Sign in to continue.</p>
+  <button class="primary" id="signin">Sign in with Google</button>
+  <div id="loginerr" class="err"></div>
+</div>
+
+<div id="editor" hidden>
+  <header>
+    <h1>Prompter</h1>
+    <button id="signout">Sign out</button>
+  </header>
+  <textarea id="script" placeholder="Paste your script here..."></textarea>
+  <div class="row"><span>Text size</span><input type="range" id="size" min="20" max="90" step="1"><output id="sizeV"></output></div>
+  <div class="row"><span>Side padding</span><input type="range" id="pad" min="0" max="120" step="2"><output id="padV"></output></div>
+  <div class="row"><span>Speed</span><input type="range" id="speed" min="5" max="200" step="1"><output id="speedV"></output></div>
+  <div class="row"><span>Prompt area</span><input type="range" id="area" min="20" max="70" step="1"><output id="areaV"></output></div>
+  <div class="row"><span>Line height</span><input type="range" id="lh" min="10" max="20" step="1"><output id="lhV"></output></div>
+  <div class="opts">
+    <select id="camera"><option value="user">Front camera</option><option value="environment">Back camera</option></select>
+    <select id="res"><option value="1080">1080p</option><option value="2160">4K (if supported)</option><option value="720">720p</option></select>
+    <select id="fps"><option value="30">30 fps</option><option value="60">60 fps</option><option value="24">24 fps</option></select>
+    <select id="countdown"><option value="3">3s countdown</option><option value="5">5s countdown</option><option value="0">No countdown</option></select>
+  </div>
+  <label class="chk"><input type="checkbox" id="flip"> Mirror text (for a glass prompter)</label>
+  <button class="primary" id="open" style="padding:14px">Open camera</button>
+  <div id="edErr" class="err"></div>
+</div>
+
+<div id="stage" hidden>
+  <video id="cam" autoplay playsinline muted></video>
+  <div id="prompt"><div id="text"></div><div id="guide"></div></div>
+  <div id="count" hidden></div>
+  <div id="live">
+    <button id="faster" title="Faster">+</button>
+    <button id="slower" title="Slower">&minus;</button>
+    <button id="restart" title="Back to top">&#8634;</button>
+  </div>
+  <div id="bar">
+    <div class="side"><button id="back">Close</button></div>
+    <button id="rec" aria-label="Record"><span></span></button>
+    <div class="side" style="justify-content:flex-end"><div id="time">00:00</div></div>
+  </div>
+</div>
+
+<div id="done" hidden>
+  <video id="preview" controls playsinline></video>
+  <div id="info" class="muted"></div>
+  <div class="btns">
+    <button class="primary" id="save">Save to phone</button>
+    <a id="dl" download><button>Download file</button></a>
+    <button id="again">Record again</button>
+  </div>
+  <div id="saveErr" class="err"></div>
+</div>
+
+<script>
+const ALLOWED = "azemammadli@gmail.com";
+const CLIENT_ID = "270075953810-iig309062qcrh0anb39lj6chhffe47pn.apps.googleusercontent.com";
+const AUTH_KEY = "prompter.auth", SET_KEY = "prompter.settings", TXT_KEY = "prompter.script";
+const $ = id => document.getElementById(id);
+
+/* ---------- auth ---------- */
+let tokenClient;
+function getAuth(){ try{ const a = JSON.parse(localStorage.getItem(AUTH_KEY)||"null"); return a && a.email===ALLOWED && a.exp>Date.now() ? a : null; }catch(e){ return null; } }
+function setAuth(a){ try{ a ? localStorage.setItem(AUTH_KEY, JSON.stringify(a)) : localStorage.removeItem(AUTH_KEY); }catch(e){} }
+function initAuth(){
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID, scope: "openid email",
+    callback: async r => {
+      if(r.error){ $("loginerr").textContent = r.error; return; }
+      let email = "";
+      try{ email = (await (await fetch("https://www.googleapis.com/oauth2/v3/userinfo",{headers:{Authorization:"Bearer "+r.access_token}})).json()).email || ""; }catch(e){}
+      try{ google.accounts.oauth2.revoke(r.access_token); }catch(e){}
+      if(email.toLowerCase() !== ALLOWED){ $("loginerr").textContent = "This page is private."; return; }
+      setAuth({email: ALLOWED, exp: Date.now() + 30*24*3600*1000});
+      showEditor();
+    }
+  });
+}
+$("signin").onclick = () => { if(!tokenClient && window.google?.accounts) initAuth(); if(tokenClient) tokenClient.requestAccessToken({prompt:"select_account", hint: ALLOWED}); };
+$("signout").onclick = () => { setAuth(null); $("editor").hidden = true; $("login").hidden = false; };
+
+/* ---------- settings ---------- */
+const DEF = {size:44, pad:24, speed:40, area:38, lh:14, camera:"user", res:"1080", fps:"30", countdown:"3", flip:false};
+let S = {...DEF};
+try{ S = {...DEF, ...JSON.parse(localStorage.getItem(SET_KEY)||"{}")}; }catch(e){}
+const ranges = {size:v=>v+"px", pad:v=>v+"px", speed:v=>v, area:v=>v+"%", lh:v=>(v/10).toFixed(1)};
+function saveSettings(){ try{ localStorage.setItem(SET_KEY, JSON.stringify(S)); }catch(e){} }
+for(const k in ranges){ const el=$(k); el.value=S[k]; $(k+"V").textContent=ranges[k](S[k]); el.oninput=()=>{ S[k]=+el.value; $(k+"V").textContent=ranges[k](S[k]); saveSettings(); applyStyle(); }; }
+for(const k of ["camera","res","fps","countdown"]){ const el=$(k); el.value=S[k]; el.onchange=()=>{ S[k]=el.value; saveSettings(); }; }
+$("flip").checked = S.flip; $("flip").onchange = e => { S.flip = e.target.checked; saveSettings(); applyStyle(); };
+try{ $("script").value = localStorage.getItem(TXT_KEY) || ""; }catch(e){}
+$("script").oninput = () => { try{ localStorage.setItem(TXT_KEY, $("script").value); }catch(e){} };
+
+function applyStyle(){
+  const t=$("text");
+  t.style.fontSize = S.size+"px";
+  t.style.lineHeight = (S.lh/10);
+  t.style.paddingLeft = t.style.paddingRight = S.pad+"px";
+  $("prompt").style.height = S.area+"%";
+  $("guide").style.top = `calc(env(safe-area-inset-top) + ${S.size*S.lh/10*1.1}px)`;
+  t.style.transform = `translateY(${-pos}px)` + (S.flip ? " scaleX(-1)" : "");
+}
+
+/* ---------- camera + scroll ---------- */
+let stream, recorder, chunks=[], pos=0, scrolling=false, lastT=0, startT=0, timer, wakeLock, blob, fileName, mime;
+
+async function openCamera(){
+  $("edErr").textContent = "";
+  const h = +S.res, w = Math.round(h*16/9);
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:S.camera, width:{ideal:w}, height:{ideal:h}, frameRate:{ideal:+S.fps}},
+      audio:{echoCancellation:false, noiseSuppression:true, autoGainControl:true}
+    });
+  }catch(e){ $("edErr").textContent = "Camera or microphone blocked: " + e.message; return; }
+  $("cam").srcObject = stream;
+  $("cam").classList.toggle("mirror", S.camera==="user");
+  $("text").textContent = $("script").value.trim() || "Paste your script first.";
+  pos = 0; applyStyle();
+  $("editor").hidden = true; $("stage").hidden = false;
+  try{ wakeLock = await navigator.wakeLock?.request("screen"); }catch(e){}
+}
+function closeCamera(){
+  stopScroll();
+  if(recorder && recorder.state!=="inactive") recorder.stop();
+  stream?.getTracks().forEach(t=>t.stop()); stream=null;
+  try{ wakeLock?.release(); }catch(e){} wakeLock=null;
+  $("stage").hidden = true; $("editor").hidden = false;
+}
+function tick(t){
+  if(!scrolling) return;
+  if(lastT){ pos += S.speed * (t-lastT)/1000 * (S.size/44); const max=$("text").scrollHeight - $("prompt").clientHeight*0.4; if(pos>max) pos=max; applyStyle(); }
+  lastT = t; requestAnimationFrame(tick);
+}
+function startScroll(){ scrolling=true; lastT=0; requestAnimationFrame(tick); }
+function stopScroll(){ scrolling=false; }
+$("prompt").onclick = () => { if(recorder?.state==="recording") scrolling ? stopScroll() : startScroll(); };
+$("faster").onclick = () => { S.speed=Math.min(200,S.speed+5); $("speed").value=S.speed; $("speedV").textContent=S.speed; saveSettings(); };
+$("slower").onclick = () => { S.speed=Math.max(5,S.speed-5); $("speed").value=S.speed; $("speedV").textContent=S.speed; saveSettings(); };
+$("restart").onclick = () => { pos=0; applyStyle(); };
+
+function pickMime(){
+  const list = ["video/mp4;codecs=avc1,mp4a.40.2","video/mp4;codecs=avc1","video/mp4","video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"];
+  return list.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || "";
+}
+function bitrate(){ return {720:8e6, 1080:16e6, 2160:40e6}[S.res] * (+S.fps>=60 ? 1.5 : 1); }
+
+async function countdown(n){
+  const c=$("count"); c.hidden=false;
+  for(let i=n;i>0;i--){ c.textContent=i; await new Promise(r=>setTimeout(r,1000)); }
+  c.hidden=true;
+}
+async function startRec(){
+  if(!stream) return;
+  mime = pickMime();
+  try{ recorder = new MediaRecorder(stream, {mimeType: mime||undefined, videoBitsPerSecond: bitrate(), audioBitsPerSecond: 192000}); }
+  catch(e){ recorder = new MediaRecorder(stream); }
+  mime = recorder.mimeType || mime || "video/mp4";
+  chunks = [];
+  recorder.ondataavailable = e => { if(e.data && e.data.size) chunks.push(e.data); };
+  recorder.onstop = finish;
+  if(+S.countdown) await countdown(+S.countdown);
+  recorder.start(1000);
+  $("rec").classList.add("on"); $("time").classList.add("on");
+  startT = Date.now(); timer = setInterval(()=>{ const s=Math.floor((Date.now()-startT)/1000); $("time").textContent=String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0"); },250);
+  startScroll();
+}
+function stopRec(){ stopScroll(); clearInterval(timer); $("rec").classList.remove("on"); $("time").classList.remove("on"); recorder?.stop(); }
+$("rec").onclick = () => recorder?.state==="recording" ? stopRec() : startRec();
+$("back").onclick = closeCamera;
+$("open").onclick = openCamera;
+
+function finish(){
+  blob = new Blob(chunks, {type: mime.split(";")[0]});
+  const ext = mime.includes("mp4") ? "mp4" : "webm";
+  const d = new Date(), p = n=>String(n).padStart(2,"0");
+  fileName = `video-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.${ext}`;
+  const url = URL.createObjectURL(blob);
+  $("preview").src = url; $("dl").href = url; $("dl").download = fileName;
+  const vt = stream?.getVideoTracks()[0]?.getSettings() || {};
+  $("info").textContent = `${vt.width||"?"}×${vt.height||"?"} · ${Math.round(vt.frameRate||0)} fps · ${(blob.size/1048576).toFixed(1)} MB · ${ext.toUpperCase()}`;
+  $("saveErr").textContent = "";
+  $("done").hidden = false;
+  $("time").textContent = "00:00";
+}
+$("save").onclick = async () => {
+  const file = new File([blob], fileName, {type: blob.type});
+  if(navigator.canShare?.({files:[file]})){
+    try{ await navigator.share({files:[file]}); return; }catch(e){ if(e.name==="AbortError") return; }
+  }
+  $("dl").click();
+  $("saveErr").textContent = "Sharing not available here, file downloaded instead.";
+};
+$("again").onclick = () => { $("done").hidden = true; URL.revokeObjectURL($("preview").src); pos=0; applyStyle(); };
+document.addEventListener("visibilitychange", async () => { if(!document.hidden && stream && !wakeLock){ try{ wakeLock = await navigator.wakeLock?.request("screen"); }catch(e){} } });
+
+/* ---------- boot ---------- */
+function showEditor(){ $("login").hidden = true; $("editor").hidden = false; applyStyle(); }
+if(getAuth()) showEditor();
+window.addEventListener("load", () => { const w = setInterval(() => { if(window.google?.accounts){ clearInterval(w); initAuth(); } }, 100); });
+</script>
+</body>
+</html>
